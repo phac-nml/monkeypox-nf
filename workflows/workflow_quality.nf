@@ -10,10 +10,15 @@ workflow assess_quality {
     take:
         ch_consensus_fasta
         ch_filtered_bam
-    
+        ch_composite_bam
+        ch_kraken_results
+
     main:
         // Join fasta with bam and get some info
-        ch_qual = ch_consensus_fasta.join(ch_filtered_bam, by:0)
+        ch_qual = ch_consensus_fasta
+                    .join( ch_filtered_bam, by:0 )
+                    .join( ch_composite_bam, by:0 )
+                    .join( ch_kraken_results, by:0 )
         assessSimpleQuality( ch_qual )
 
         // Nextclade with fastas

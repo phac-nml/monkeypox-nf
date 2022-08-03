@@ -15,6 +15,11 @@ workflow host_removal {
 
         if ( params.kraken_db ) {
             runKraken2( generateHostRemovedFastq.out )
+            ch_kraken_results = runKraken2.out.report
+        } else {
+            //Set empty output to be passed to quality steps
+            ch_kraken_results = ch_filtered_bam.map { it -> [ it[0], [] ] }
         }
-    //emit:
+    emit:
+    kraken_results = ch_kraken_results
 }

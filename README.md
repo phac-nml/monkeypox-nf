@@ -16,6 +16,7 @@ A composite reference mapping approach was chosen as we aim to capture as many M
     - [Quick Start](#quick-start)
     - [Inputs](#inputs)
     - [Outputs](#outputs)
+    - [Resources Needed](#resources-needed)
 - [Full Pipeline Process Details](#full-pipeline-process-details)
     1. [Generate and Index Composite Reference](#1-generate-and-index-composite-reference)
     2. [Initial Fastq Quality Metrics](#2-initial-fastq-quality-metrics)
@@ -143,18 +144,24 @@ nextflow run phac-nml/monkeypox-nf --help
         - Column headers were renamed such that `.` were turned into `_` and all are prefixed with `nc_`
         - `,` separators inside the cells were changed to `;`
 
-    | sample | num_reads_mapped | avg_read_depth | total_n_count | proportion_basecalled | nc_clade | ... |
+    | sample | num_reads_mapped | mean_sequencing_depth | num_consensus_n | genome_completeness | nc_clade | ... |
     |-|-|-|-|-|-|-|
     | Sample1 | 7606 | 4.47005 | 194674 | 0.0128544 | hMPXV-1 | ... |
     | Sample2 | 320700 | 213.525 | 423 | 0.997855 | hMPXV-1 | ... |
 
     - Non-nextclade columns are as follows:
     ```
-    sample                - Name of the sample
-    num_reads_mapped      - Int number of reads mapped, pulled from BAM file using samtools flagstats. Remember reads are paired
-    avg_read_depth        - Float average genomic read depth, pulled from BAM file using samtools depth and awk
-    total_n_count         - Int number of positions that were not basecalled in the genome, from seqtk comp
-    proportion_basecalled - Float proportion of the genome called a base (genome completeness), from seqtk comp and awk
+    sample                  - [String] Name of the sample
+    num_reads_mapped        - [Int] number of total reads mapped, pulled from BAM file using samtools flagstats.
+                                Reads are paired so to the number of total sequence fragments can be obtained by dividing this value by 2
+    mean_sequencing_depth   - [Float] average genomic read depth, pulled from BAM file using samtools depth and awk
+    median_sequencing_depth - [Int] median genomic read depth, pulled from BAM file using samtools depth and awk
+    num_consensus_n         - [Int] number of positions that were not basecalled in the genome, from seqtk comp
+    genome_completeness     - [Float] proportion of the genome where a base was called. Generated from seqtk comp and awk
+    percent_viral_reads     - [Float] percentage of input reads that were identified as viral after host removal
+                                kraken2_viral_reads * 2
+                               ------------------------- * 100
+                                   total sample reads
     ```
 
 3. all_consensus directory
@@ -198,6 +205,46 @@ results
     ├── Sample2_R1_fastqc.html
     └── Sample2_R2_fastqc.html
 ```
+
+### Resources Needed
+
+Resource usage and settings are important to run efficiently without wasting time. The below sections will give the minimal and default resources utilized along with an explanation on how to set custom resources.
+
+The slowest step will almost always be the indexing of the composite genome which will take 1-2 hours. If running with minimal resources or extremely large input files, then the composite mapping step could take longer.
+
+#### Minimum (but Not Recommended):
+
+This pipeline can be run on the following minimum specs:
+- 1 core
+- 8GB memory
+
+Note: Running minimal specs with paired fastq file sizes (R1+R2) greater than 5GB (about 5 million paired reads) will take a fairly long time.
+- Example 1: 24GB paired fastq files took 5.5 hours
+- Example 2: 138GB input paired files (one sample) took 2 days and 9 hours to map with bwa-mem
+
+See how to setup a resource config below.
+
+#### Recommended/Provided Resource Config:
+
+The default setting for the pipeline requires:
+- 3 cores (4 if wanting to run Kraken2)
+- 12GB memory (16 if wanting to run Kraken2)
+
+To get an idea on how long different sized input files should take to run the slowest step (bwa mem composite mapping) consult the following chart:
+![approx_time_for_filesize](./testing_reports/pictures/time_filesize.png)
+
+#### Setting Resource Config:
+
+To create a custom resource file and utilize it in this pipeline, you can copy the `resources.config` file and modify the CPU and memory needs for default processes, medium processes (bwa-mem at the moment), and large processes (kraken2 at the moment) to whatever you wish along with potentially changing the executor to something else.
+
+To utilize a custom config file, you can add `-c /path/to/config` to your `nextflow run phac-nml/monkeypox-nf` command.
+
+For resources:
+- BWA-MEM should be given 4GB/core
+- Kraken2 should be given 4GB/core (2GB/core should work if memory is a constraint)
+
+The number of cores significantly speeds up analysis on larger files.
+- Example: For a 138GB input paired files (one sample) mapping took 1.66 hours using 24 cores and 96GB memory. 
 
 ----------
 

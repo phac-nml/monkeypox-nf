@@ -18,11 +18,14 @@ process runKraken2 {
     publishDir "${params.outdir}/${sample}", pattern: "${sample}*", mode: "copy"
     tag { sample }
 
+    label 'largeProcess'
+
     input:
     tuple val(sample), path(read1), path(read2), val(gzipped)
 
     output:
-    path("${sample}*")
+    path("${sample}*"), emit: all
+    tuple val(sample), path("${sample}.kraken2.report"), emit: report
 
     script:
     """

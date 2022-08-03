@@ -1,0 +1,45 @@
+#####################################
+# Nextflow CI Test for NML Pipeline #
+#####################################
+name: monkeypox-nf NML CI
+
+on:
+  pull_request: # Run on all pull requests
+  push:
+    branches: master
+  schedule: # Run master weekly on Monday
+    - cron: 0 6 5 * *
+      branches: master
+
+jobs:
+  pipeline-test:
+    name: monkeypox-nf workflow test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Create artifacts dir
+      run: mkdir -p artifacts
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v3
+      with: 
+        python-version: 3.9
+    - name: Add Conda to system
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: Install Nextflow and Mamba
+      run: |
+        conda update -n base -c defaults conda
+        conda install -c conda-forge -c bioconda -c defaults mamba nextflow
+        rm -f /usr/share/miniconda/pkgs/cache/*.json # workaround for mamba-org/mamba#488
+    - name: Nextflow Version
+      run: | 
+        nextflow -v
+    - name: List Files
+      run: |
+        ls -al ${{ github.workspace }}
+    - name: Run Nextflow Monkeypox-NF Pipeline
+      run: bash .github/scripts/run_mpx_pipeline.sh
+    - name: Done
+      run: echo "Done"
